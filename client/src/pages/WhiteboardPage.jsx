@@ -20,6 +20,7 @@ const WhiteboardPage = () => {
     const [cursorVisible, setCursorVisible] = useState(true);
 
     const colors = ['#000000', '#EF4444', '#22C55E', '#3B82F6', '#EAB308'];
+
     
     // --- Socket.IO Connection ---
     useEffect(() => {
