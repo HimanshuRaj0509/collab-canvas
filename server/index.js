@@ -12,7 +12,8 @@ app.use(cors());
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
-    origin: process.env.CLIENT_URL || "http://localhost:5173",
+    // This should be your Vercel URL in production
+    origin: ["http://localhost:5173", process.env.CLIENT_URL].filter(Boolean),
     methods: ["GET", "POST"]
   }
 });
@@ -33,38 +34,39 @@ io.on('connection', (socket) => {
 
   // When a user joins a room
   socket.on('join_room', (data) => {
-    socket.join(data.roomId);
-    console.log(`User ${socket.id} joined room ${data.roomId}`);
+    const { roomId } = data;
+    socket.join(roomId);
+    console.log(`User ${socket.id} joined room ${roomId}`);
 
     // Initialize room if it doesn't exist
-    if (!roomHistories[data.roomId]) {
-      roomHistories[data.roomId] = {
+    if (!roomHistories[roomId]) {
+      roomHistories[roomId] = {
         history: [{ lines: [], texts: [] }],
         step: 0,
       };
-      roomUsers[data.roomId] = {};
+      roomUsers[roomId] = {};
     }
 
     // Assign a name and color to the new user
     const name = randomNames[Math.floor(Math.random() * randomNames.length)];
     const color = randomColors[Math.floor(Math.random() * randomColors.length)];
-    roomUsers[data.roomId][socket.id] = { name, color };
+    roomUsers[roomId][socket.id] = { name, color };
     
     // Send the current history to the new user
-    socket.emit('load_initial_data', roomHistories[data.roomId]);
+    socket.emit('load_initial_data', roomHistories[roomId]);
   });
 
-  // When a user performs an action that changes history
+  // When a user performs any action that changes history
   socket.on('history_change', (data) => {
       const { roomId, history, step } = data;
-      if(roomHistories[roomId]){
+      if (roomHistories[roomId]) {
           roomHistories[roomId] = { history, step };
-          // Broadcast to everyone in the room to ensure sync
+          // Broadcast the complete updated state to everyone in the room
           io.in(roomId).emit('history_updated', roomHistories[roomId]);
       }
   });
 
-  // Listen for cursor data
+  // Listen for cursor data (this is transient, not saved)
   socket.on('cursor_move', (data) => {
     const user = roomUsers[data.roomId]?.[socket.id];
     if (user) {
